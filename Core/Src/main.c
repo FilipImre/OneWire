@@ -99,6 +99,44 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  char msgg[256];
+  // ================================================[ TEST READ_ROM]===================================================================================
+  /*
+   * This is the fastest and most efficient method to retrieve 8 byte device UID for one device
+   * This variant can be used only when one device is present on the One-Wire bus
+   * ----[ USAGE ]----
+   * Just call 'OneWire_FindAllDevices();'
+   * The device UID is stored in the 0-th device UID descriptor OneWireUIDs[0] by accessing its
+   * 8 bytes: OneWireUIDs[0].address[0], ... , OneWireUIDs[0].address[7]
+   * */
+
+  OneWire_Read_UID();
+  sprintf(msgg, "Address = %02X %02X %02X %02X %02X %02X %02X %02X\n", OneWireUIDs[0].address[0], OneWireUIDs[0].address[1], OneWireUIDs[0].address[2], OneWireUIDs[0].address[3], OneWireUIDs[0].address[4], OneWireUIDs[0].address[5], OneWireUIDs[0].address[6], OneWireUIDs[0].address[7]);
+  HAL_UART_Transmit(&huart1, msgg, strlen(msgg), 3000);
+
+  // ================================================[ TEST SEARCH_ROM]===================================================================================
+  /*
+   * When >1 One-Wire devices are present on the bus the READ-ROM command causes communication conflicts on the bus
+   * In this case it must the SEARCH-ROM be used to discover devices bit-by-bit using Dallas Semiconductor's original
+   * algorithm adapted to the functions of the library. This function is limited to find 64 devices at maximum
+   * ----[ USAGE ]----
+   * Call 'OneWire_FindAllDevices();'
+   * The number of devices present on the bus can be found in 'uint8_t OneWireDevsNo'
+   * The UIDs are stored in 'OneWireUIDs[OneWireDevsNo]'
+   * */
+
+  OneWire_FindAllDevices();  // Use this when there are >1 devices on the bus (this function is significantly slower but can find all devices)
+
+  sprintf(msgg, "#devices %d\n", OneWireDevsNo);
+  HAL_UART_Transmit(&huart1, msgg, strlen(msgg), 3000);
+
+  for(uint8_t i=0; i<OneWireDevsNo; i++)
+  {
+	  sprintf(msgg, "Address = %02X %02X %02X %02X %02X %02X %02X %02X\n", OneWireUIDs[i].address[0], OneWireUIDs[i].address[1], OneWireUIDs[i].address[2], OneWireUIDs[i].address[3], OneWireUIDs[i].address[4], OneWireUIDs[i].address[5], OneWireUIDs[i].address[6], OneWireUIDs[i].address[7]);
+	  HAL_UART_Transmit(&huart1, msgg, strlen(msgg), 3000);
+  }
+  // ================================================[ EXAMPLES IN WHILE LOOP]===================================================================================
+
   while (1)
   {
     /* USER CODE END WHILE */
@@ -106,9 +144,19 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  char msg[64];
 
+
+	// =======================================[ TEST SKIP-ROM DS18B20 MEASURE TEMPERATURE ]=================================================
+	  /*
+	   * This is the most commonly used functionality of DS18B20
+	   * !!! NOTE !!!
+	   * Not required all 5 bytes to be read, the first 2 bytes are sufficient:
+	   * first byte: LSB
+	   * second byte: MSB
+	   * calculation formula: Tmperature = ((MSB << 8) | LSB) / 16
+	   * */
 	  // Request measure temperature
 	  OneWire_Init();
-	  OneWire_WriteByte(0xCC);  // Skip ROM         (ROM-CMD)
+	  OneWire_WriteByte(ROM_SKIP);  // Skip ROM         (ROM-CMD)
 	  OneWire_WriteByte(0x44);  // Measure Temp
 
 	  // Wait for temperature measurement
@@ -116,10 +164,8 @@ int main(void)
 
 	  // Request read bytes
 	  OneWire_Init();
-	  OneWire_WriteByte(0xCC);  // Skip ROM         (ROM-CMD)
+	  OneWire_WriteByte(ROM_SKIP);  // Skip ROM         (ROM-CMD)
 	  OneWire_WriteByte(0xBE);  // Read Scratchpad  (F-CMD)
-
-	  HAL_Delay(1);
 
 	  // Reading bytes from DS18B20
 	  uint8_t Recvd[5] = {0, 0, 0, 0, 0};
@@ -132,13 +178,37 @@ int main(void)
 	  volatile uint16_t Temperature = (Recvd[1] << 8) | Recvd[0];
 	  Temperature = Temperature / 16;
 
-
-	  // ===================================================================================
 	  sprintf(msg, "byte0: %u\nbyte1: %u\nbyte2: %u\nbyte3: %u\nbyte4: %u\nTemperature: %d\n\n", Recvd[0], Recvd[1], Recvd[2], Recvd[3], Recvd[4], Temperature);
 	  HAL_UART_Transmit(&huart1, msg, strlen(msg), 3000);
-	  HAL_Delay(10);
 
-	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	// =======================================[ TEST MATCH-ROM WITH DS18B20 ]==========================================================
+	  /*
+	   * -------USAGE-------
+	   * Initialize the BUS and request MATCH-ROM
+	   * Write all 8 bytes, starting from the family-code byte
+	   * The rest is the same as in case of SKIP-ROM example
+	   * */
+	  HAL_Delay(100);
+	  OneWire_Init();
+	  OneWire_WriteByte(ROM_MATCH); // Request MATCH_ROM
+
+	  const uint8_t Adr[8] = {0x28, 0x0C, 0xBD, 0x01, 0x00, 0x00, 0x00, 0x4F}; // Address to be matched
+	  for(uint8_t i=0; i<8; i++) // Send address bytes byte-by-byte
+	  {
+		  OneWire_WriteByte(Adr[i]);
+	  }
+	  OneWire_WriteByte(0xBE); // Read scratchpad, the TH byte_2 cnnot be >0x80
+	  OneWire_ReadByte(); OneWire_ReadByte(); // Ignore the first 2 bytes
+
+	  if(OneWire_ReadByte() < 0x80) // Valid response => MATCH-ROM succeeded
+		  sprintf(msg, "Device %02X %02X %02X %02X %02X %02X %02X %02X matched successful\n", Adr[0],  Adr[1], Adr[2], Adr[3], Adr[4], Adr[5], Adr[6], Adr[7]);
+	  else
+		  sprintf(msg, "Address %02X %02X %02X %02X %02X %02X %02X %02X failed to match with the device\n", Adr[0],  Adr[1], Adr[2], Adr[3], Adr[4], Adr[5], Adr[6], Adr[7]);
+
+	  HAL_UART_Transmit(&huart1, msg, strlen(msg), 3000);
+	// =====================================================================================================================================
+
+	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // Heart-beat signal of the stm32
 	  HAL_Delay(500);
   }
   /* USER CODE END 3 */
