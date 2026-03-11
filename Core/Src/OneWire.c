@@ -11,7 +11,7 @@
 GPIO_TypeDef *SingleWirePort;
 uint16_t SingleWirepinMask;
 uint8_t SingleWirepin;
-OneWireUID OneWireUIDs[32] = { { {0} } };
+OneWireUID OneWireUIDs[MAX_ONEWIRE_DEVICE_NUMBER] = { { {0} } };
 uint8_t OneWireDevsNo = 0;
 
 

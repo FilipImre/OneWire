@@ -99,7 +99,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  char msgg[256];
+  char msg[256];
   // ================================================[ TEST READ_ROM]===================================================================================
   /*
    * This is the fastest and most efficient method to retrieve 8 byte device UID for one device
@@ -111,8 +111,8 @@ int main(void)
    * */
 
   OneWire_Read_UID();
-  sprintf(msgg, "Address = %02X %02X %02X %02X %02X %02X %02X %02X\n", OneWireUIDs[0].address[0], OneWireUIDs[0].address[1], OneWireUIDs[0].address[2], OneWireUIDs[0].address[3], OneWireUIDs[0].address[4], OneWireUIDs[0].address[5], OneWireUIDs[0].address[6], OneWireUIDs[0].address[7]);
-  HAL_UART_Transmit(&huart1, msgg, strlen(msgg), 3000);
+  sprintf(msg, "Address = %02X %02X %02X %02X %02X %02X %02X %02X\n", OneWireUIDs[0].address[0], OneWireUIDs[0].address[1], OneWireUIDs[0].address[2], OneWireUIDs[0].address[3], OneWireUIDs[0].address[4], OneWireUIDs[0].address[5], OneWireUIDs[0].address[6], OneWireUIDs[0].address[7]);
+  HAL_UART_Transmit(&huart1, msg, strlen(msg), 3000);
 
   // ================================================[ TEST SEARCH_ROM]===================================================================================
   /*
@@ -127,13 +127,13 @@ int main(void)
 
   OneWire_FindAllDevices();  // Use this when there are >1 devices on the bus (this function is significantly slower but can find all devices)
 
-  sprintf(msgg, "#devices %d\n", OneWireDevsNo);
-  HAL_UART_Transmit(&huart1, msgg, strlen(msgg), 3000);
+  sprintf(msg, "#devices %d\n", OneWireDevsNo);
+  HAL_UART_Transmit(&huart1, msg, strlen(msg), 3000);
 
   for(uint8_t i=0; i<OneWireDevsNo; i++)
   {
-	  sprintf(msgg, "Address = %02X %02X %02X %02X %02X %02X %02X %02X\n", OneWireUIDs[i].address[0], OneWireUIDs[i].address[1], OneWireUIDs[i].address[2], OneWireUIDs[i].address[3], OneWireUIDs[i].address[4], OneWireUIDs[i].address[5], OneWireUIDs[i].address[6], OneWireUIDs[i].address[7]);
-	  HAL_UART_Transmit(&huart1, msgg, strlen(msgg), 3000);
+	  sprintf(msg, "Address = %02X %02X %02X %02X %02X %02X %02X %02X\n", OneWireUIDs[i].address[0], OneWireUIDs[i].address[1], OneWireUIDs[i].address[2], OneWireUIDs[i].address[3], OneWireUIDs[i].address[4], OneWireUIDs[i].address[5], OneWireUIDs[i].address[6], OneWireUIDs[i].address[7]);
+	  HAL_UART_Transmit(&huart1, msg, strlen(msg), 3000);
   }
   // ================================================[ EXAMPLES IN WHILE LOOP]===================================================================================
 
@@ -142,8 +142,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  char msg[64];
-
 
 	// =======================================[ TEST SKIP-ROM DS18B20 MEASURE TEMPERATURE ]=================================================
 	  /*

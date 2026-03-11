@@ -15,11 +15,16 @@ extern "C" {
 #include "main.h"
 #include "stm32f1xx_hal.h"
 
+// SLAVE related
+#define MAX_ONEWIRE_DEVICE_NUMBER 64
+
 typedef struct
 {
     uint8_t address[8];
 } OneWireUID;
+
 extern uint8_t OneWireDevsNo;
+extern OneWireUID OneWireUIDs[MAX_ONEWIRE_DEVICE_NUMBER];
 
 // GPIO output configuration
 #define PIN_MODE_PUSH_PULL 0x00
@@ -31,10 +36,7 @@ extern uint8_t OneWireDevsNo;
 #define ROM_SKIP 0xCC
 #define ROM_SEARCH 0xF0
 
-// SLAVE related
-#define MAX_ONEWIRE_DEVICE_NUMBER 32
 
-extern OneWireUID OneWireUIDs[MAX_ONEWIRE_DEVICE_NUMBER];
 
 extern void OneWireSetup(GPIO_TypeDef *port, uint16_t pinMask, uint8_t pin);
 extern uint8_t OneWire_Init(void);
