@@ -6,7 +6,7 @@ If you are working on a budget project involving several OneWire sensors like DS
 2. Download '**Core/Src/OneWire.c**' and put inside '**Src**' folder
 3. In 'main.c' add ' **#include "OneWire.h**" ' between '**/*USER CODE BEGIN Includes*/**' and '**/*USER CODE END Includes*/**'
 4. Don't forget to initialize OneWire library by calling '**OneWireSetup(GPIOB, GPIO_PIN_10, 10);**' before the while(1) loop, ideally inside /*USER CODE BEGIN 2*/
-5. (OPTIONAL) Copy my code from my 'main.c' inside the while(1) loop and insert inside your while(1) loop
+5. (OPTIONAL) Run my code from my 'main.c' before and inside the while(1) loop to test if it works
 # How to use
  - Before reading or writing anything, the OneWire bus has to initialize slaves. Don't forget to call '**OneWire_Init()**;' before each transaction
  - Regardless of the number of OneWire devices connected to the bus, the protocol forces to select the slave after each bus initialization.
