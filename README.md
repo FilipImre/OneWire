@@ -1,5 +1,12 @@
 # OneWire
 If you are working on a budget project involving several OneWire sensors like DS18B20, but can't affort the expensive "waterproof" metal cap variant, instead you're relying on the cheap TO-92 package version which doesn't work with the standard stm32f103's USART in Half-Duplex mode; If you are about to invest several hours on the debugging the code and evaluating waveforms just to find out that the cheaper version dosn't satisfy standard time constraints and has several issues when the stm32 master force its pins in PUSH-PULL configuration for writing. I created this OneWrire bit-banging library with the intent to supply a stable and reliable library for varios types of Single Wire sensors. This library isn't the fastest but I configured bit timings in order to work with most of the sensors, even if they are not satisfying standard OneWire timings.
+# Library functions
+ * void OneWireSetup();
+ * uint8_t OneWire_Init();
+ * void OneWire_WriteByte();
+ * uint8_t OneWire_ReadByte();
+ * void OneWire_Read_UID();
+ * void OneWire_FindAllDevices();
 # How to install
 0. (OPTIONAL) Create a blank STM32F103 project, or use your existing one and navigate to the 'Core' folder
 1. Download '**Core/Inc/OneWire.h**' and put inside '**Inc**' folder
