@@ -23,3 +23,20 @@ If you are working on a budget project involving several OneWire sensors like DS
  - Use '**uint8_t OneWire_ReadByte()**' to read bytes from the slave. For this, firstly set the slave to enter reading mode with the READ-SCRATCHPAD command (0xBE)
  - For initializing the library you must call the '**OneWireSetup(GPIOB, GPIO_PIN_10, 10);**' function where you are defining the pin to be used for communication.
    For example, if you want to use the PC13 pin for communication, you should write '**OneWireSetup(GPIOC, GPIO_PIN_13, 13);**'
+# Example
+```
+OneWireSetup(GPIOB, GPIO_PIN_10, 10);                                   // Set up OneWire on PB10
+
+OneWire_Init();                                                         // Initialize communication
+OneWire_WriteByte(0xCC);                                                // SKIP-ROM command (~MULTICAST)
+OneWire_WriteByte(0x44);                                                // Send CONVERT-T command
+
+HAL_Delay(800);                                                         // Wait DS18B20 to complete tempreature conversion
+
+OneWire_Init();                                                         // Initialize communication
+OneWire_WriteByte(0xCC);                                                // SKIP-ROM command, when only one DS18B20 is on the bus
+OneWire_WriteByte(0xBE);                                                // Send 'Read scratchpad' command
+
+uint16_t rawTemp = OneWire_ReadByte() | (OneWire_ReadByte() << 8);      // (MSB << 8) | (LSB)
+float Temperature = rawTemp / 16.0f;
+```
