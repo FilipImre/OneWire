@@ -2,7 +2,7 @@
  * OneWire.c
  *
  *  Created on: Mar 8, 2026
- *      Author: filip
+ *      Author: Filip Imre
  */
 
 #include "OneWire.h"
@@ -13,6 +13,8 @@ uint16_t SingleWirepinMask;
 uint8_t SingleWirepin;
 OneWireUID OneWireUIDs[MAX_ONEWIRE_DEVICE_NUMBER] = { { {0} } };
 uint8_t OneWireDevsNo = 0;
+
+uint8_t OneWireConfig = 0; // Configuration register for the library, search for 'uint8_t OneWireConfig' in 'OneWire.h'
 
 
 static void DWT_Init(void)
@@ -47,12 +49,18 @@ uint8_t OneWire_Init(void)
 	uint8_t Presence_Byte = 0;
 
 	// Generating RESET pulse
-	gpio_set_mode(SingleWirePort, SingleWirepin, PIN_MODE_PUSH_PULL);
+	gpio_set_mode(SingleWirePort, SingleWirepin, PIN_MODE_PUSH_PULL); // PINs in PUSH-PULL mode
+	while(!CHECK_OWENABLED()); // If OneWire pause requested, then wait until it's freed
+	PAUSE_INTERRUPTS(atomic1); // Keep interrupt catch mechanism running but temporary disable callback executions
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, RESET); // Falling edge
 	delay_us(500); // Generate 500 usec RESET pulse
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, SET); // Rsising edge
+	RESUME_INTERRUPTS(atomic1); // Re-enable interrupt callbacks that will fire automatically interrupts were triggered during pause
+
 
 	// Checking presence pulse
+	while(!CHECK_OWENABLED()); // If OneWire pause requested, then wait until it's freed
+	PAUSE_INTERRUPTS(atomic2); // Keep interrupt catch mechanism running but temporary disable callback executions
 	gpio_set_mode(SingleWirePort, SingleWirepin, PIN_MODE_OPEN_DRAIN);
 	delay_us(10); // (t+10)
 	Presence_Byte |= ( ((GPIOB->IDR >> 10) & 0x1) << 0); // should be still HIGH
@@ -62,11 +70,9 @@ uint8_t OneWire_Init(void)
 	Presence_Byte |= ( ((GPIOB->IDR >> 10) & 0x1) << 2); // should be still LOW
 	delay_us(227); // (t+301)
 	Presence_Byte |= ( ((GPIOB->IDR >> 10) & 0x1) << 3); // should be HIGH
+	RESUME_INTERRUPTS(atomic2); // Re-enable interrupt callbacks that will fire automatically interrupts were triggered during pause
 	delay_us(49); // Safe wait margin before attempting to write anything (t~350 usec)
 
-	// Set PB10 to push-pull output, 10 MHz
-	//gpio_set_mode(SingleWirePort, SingleWirepin, PIN_MODE_PUSH_PULL);
-	//delay_us(5); // Safe transition from open-drain to push-pull
 	return (Presence_Byte == 0b00001001) ? 1 : 0; // HIGH->LOW->LOW->HIGH
 }
 
@@ -85,6 +91,8 @@ uint8_t OneWire_ReadByte(void)
 	for(uint8_t i=0; i<8; i++)
 	{
 	  // Generating read pulse (10 usec pulse and read from t=16 usec)
+	  while(!CHECK_OWENABLED()); // If OneWire pause requested, then wait until it's freed
+	  PAUSE_INTERRUPTS(atomic1); // Keep interrupt catch mechanism running but temporary disable callback executions
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, RESET);
 	  delay_us(10);
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, SET);
@@ -94,10 +102,11 @@ uint8_t OneWire_ReadByte(void)
 	  for(uint8_t samp=0; samp<16; samp++) // 16x sampling the line starting from 16 usec with a delay of 1 usec each
 	  {
 		  line_sampled |= (((GPIOB->IDR >> 10) & 0x1) << samp); // sample the line (LOW or HIGH) and insert into "line_sampled"
-		  //delay_us(1); // 1 usec delay between each line sampling
 	  }
+	  RESUME_INTERRUPTS(atomic1); // Re-enable interrupt callbacks that will fire automatically interrupts were triggered during pause
 	  RxByte |= (((__builtin_popcount(line_sampled) >= 8) ? 1 : 0) << i); // 1 if majority high, else 0, LSB first
 	  delay_us(45); // t>60 usec: Safe wait limit till the reading of the next bit
+	  // HAL_Delay(5000); TEST SUCCESS FOR DS18B20
 	}
     return RxByte;
 }
@@ -109,6 +118,8 @@ void OneWire_WriteByte(uint8_t data)
 	delay_us(1);
     for (int i=0; i<8; i++) // ~80 usec per bit, total 640 usec pe byte
     {
+    	while(!CHECK_OWENABLED()); // If OneWire pause requested, then wait until it's freed
+    	PAUSE_INTERRUPTS(atomic1); // Keep interrupt catch mechanism running but temporary disable callback executions
     	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, RESET); // Falling edge
     	if((data & (1<<i)) != 0) // writing '1'
     	{
@@ -121,6 +132,8 @@ void OneWire_WriteByte(uint8_t data)
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, SET); // Rising edge after 60 usec
 			delay_us(10); // 10 usec HIGH, total: ~70 usec
     	}
+    	RESUME_INTERRUPTS(atomic1); // Re-enable interrupt callbacks that will fire automatically interrupts were triggered during pause
+    	// HAL_Delay(5000); TEST SUCCESS FOR DS18B20
     }
 }
 
@@ -133,6 +146,8 @@ static uint8_t OneWire_ReadROMBits()
 		gpio_set_mode(SingleWirePort, SingleWirepin, PIN_MODE_PUSH_PULL); // PB10 to open-drain
 		delay_us(1);
 		// Generating read pulse (10 usec pulse and read from t=16 usec)
+		while(!CHECK_OWENABLED()); // If OneWire pause requested, then wait until it's freed
+		PAUSE_INTERRUPTS(atomic1); // Keep interrupt catch mechanism running but temporary disable callback executions
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, RESET);
 		delay_us(10);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, SET);
@@ -145,8 +160,8 @@ static uint8_t OneWire_ReadROMBits()
 		for(uint8_t samp=0; samp<16; samp++) // 16x sampling the line starting from 16 usec with a delay of 1 usec each
 		{
 		  line_sampled |= (((GPIOB->IDR >> 10) & 0x1) << samp); // sample the line (LOW or HIGH) and insert into "line_sampled"
-		  //delay_us(1); // 1 usec delay between each line sampling
 		}
+		RESUME_INTERRUPTS(atomic1); // Re-enable interrupt callbacks that will fire automatically interrupts were triggered during pause
 		bits |= (((__builtin_popcount(line_sampled) >= 8) ? 1 : 0) << bitPos); // 1 if majority high, else 0, LSB first
 		delay_us(45); // t>60 usec: Safe wait limit till the reading of the next bit
 	}
@@ -158,6 +173,8 @@ static void OneWire_SetSearchDirection(uint8_t direction)
 {
 	gpio_set_mode(SingleWirePort, SingleWirepin, PIN_MODE_PUSH_PULL);
 	delay_us(1); // Safe wait to reconfigure GPIO pin
+	while(!CHECK_OWENABLED()); // If OneWire pause requested, then wait until it's freed
+	PAUSE_INTERRUPTS(atomic1); // Keep interrupt catch mechanism running but temporary disable callback executions
 	if(direction) // '1'
 	{
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, RESET); // Falling edge
@@ -171,6 +188,7 @@ static void OneWire_SetSearchDirection(uint8_t direction)
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, SET); // Rising edge after 60 usec
 		delay_us(10); // 10 usec HIGH, total: ~70 usec
 	}
+	RESUME_INTERRUPTS(atomic1); // Re-enable interrupt callbacks that will fire automatically interrupts were triggered during pause
 }
 
 void OneWire_FindAllDevices(void) // The implementation and adaptation of the original Dalla Semiconductor's fininf algorithm
@@ -305,4 +323,5 @@ void OneWireSetup(GPIO_TypeDef *port, uint16_t pinMask, uint8_t pin)
 
 	// Microsecond timer init
 	DWT_Init();
+	ENABLE_ONEWIRE();
 }

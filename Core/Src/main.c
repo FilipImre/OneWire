@@ -11,7 +11,6 @@
   *
   * This software is licensed under terms that can be found in the LICENSE file
   * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -156,6 +155,24 @@ int main(void)
 	  OneWire_Init();
 	  OneWire_WriteByte(ROM_SKIP);  // Skip ROM         (ROM-CMD)
 	  OneWire_WriteByte(0x44);  // Measure Temp
+
+	  /* Begin of super important atomic code, interrupt or whatever that can't wait low priority OneWire tasks to complete.
+	   * DISABLE_ONEWIRE() is the safest mode of pausing OneWire read/write operations without interfering bit timings.
+	   * This mechanism is based on regrouping the OneWire code into atomic operation blocks that are pausing interrupt callbacks while
+	   * the respective atomic block operations (writing voltage levels) are not finished. For every event that has been occurred during
+	   * the execution of the atomic block is flagged and will be fired it's callback function right after atomic block execution is finished.
+	   * All that DISABLE_ONEWIRE() does is signaling for each atomic block that the execution of the next atomic block is not allowed 
+	   */
+	  DISABLE_ONEWIRE();
+	  // Your_Super_Important_Instruction_1;
+	  // Your_Super_Important_Instruction_2;
+	  // ...
+	  // // Your_Super_Important_Last_Instruction();
+	  ENABLE_ONEWIRE();
+	  /* ENABLE_ONEWIRE() signals each atmoic OneWire execution block that the execution of the next block is allowed.
+	   * By using this mechanism you don't have to worry about stochastic OneWire execution timings, nor corrupted bytes
+	   * transmitted over the bus, even when large number of OneWire operations are required, for example calling 'OneWire_FindAllDevices()' 
+	   * */
 
 	  // Wait for temperature measurement
 	  HAL_Delay(700);
